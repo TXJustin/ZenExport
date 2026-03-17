@@ -428,29 +428,30 @@ def run(context):
         ui = app.userInterface
         log_to_console(app, "ZenExport Starting...")
         
+        # 1. Clean up old instances
         cmdDef = ui.commandDefinitions.itemById(CMD_ID)
         if cmdDef: cmdDef.deleteMe()
         
-        if not os.path.exists(ResourcesFolder):
-            try: os.makedirs(ResourcesFolder)
-            except: pass
-            
+        # 2. Create the Command Definition
+        # Note: Added 'Ctrl+S' directly to the description for clarity
         cmdDef = ui.commandDefinitions.addButtonDefinition(CMD_ID, CMD_NAME, CMD_DESC, ResourcesFolder)
-        cmdDef.hotKey = "Ctrl+S"
+        cmdDef.shortcutKeyboard = "Ctrl+S" # Use shortcutKeyboard instead of hotKey for better reliability
         
+        # 3. Connect the Created Handler
         onCreated = ZenExportCommandCreatedHandler()
         cmdDef.commandCreated.add(onCreated) 
         _handlers.append(onCreated)
         
-        #onStarting = ZenExportCommandStartingHandler()
-        #ui.commandStarting.add(onStarting)
-        #_handlers.append(onStarting)
-        
-        onActivated = ZenExportDocumentActivatedHandler()
-        app.documentActivated.add(onActivated)
-        _handlers.append(onActivated)
-        
-        log_to_console(app, "ZenExport Ready.")
+        # 4. ADD TO UI (This is the missing link)
+        # This puts the button in the File Dropdown menu
+        fileMenu = ui.allToolbarPanels.itemById('FileDropdown')
+        if fileMenu:
+            # Check if it already exists, if not, add it
+            existingControl = fileMenu.controls.itemById(CMD_ID)
+            if not existingControl:
+                fileMenu.controls.addCommand(cmdDef)
+
+        log_to_console(app, "ZenExport Ready. (Check File Menu)")
         
     except:
         app = adsk.core.Application.get()
