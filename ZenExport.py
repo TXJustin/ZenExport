@@ -422,36 +422,45 @@ class ZenExportDocumentActivatedHandler(adsk.core.DocumentEventHandler):
 # MAIN
 # ============================================================================
 
+# ============================================================================
+# MAIN
+# ============================================================================
+
 def run(context):
     try:
         app = adsk.core.Application.get()
         ui = app.userInterface
-        log_to_console(app, "ZenExport Starting...")
         
-        # 1. Clean up old instances
+        # 1. Clean up old instances to prevent ghosting
         cmdDef = ui.commandDefinitions.itemById(CMD_ID)
-        if cmdDef: cmdDef.deleteMe()
+        if cmdDef:
+            cmdDef.deleteMe()
         
         # 2. Create the Command Definition
-        # Note: Added 'Ctrl+S' directly to the description for clarity
+        # We use .shortcutKeyboard for the most reliable Ctrl+S override
         cmdDef = ui.commandDefinitions.addButtonDefinition(CMD_ID, CMD_NAME, CMD_DESC, ResourcesFolder)
-        cmdDef.shortcutKeyboard = "Ctrl+S" # Use shortcutKeyboard instead of hotKey for better reliability
+        cmdDef.shortcutKeyboard = "Ctrl+S" 
         
         # 3. Connect the Created Handler
         onCreated = ZenExportCommandCreatedHandler()
         cmdDef.commandCreated.add(onCreated) 
         _handlers.append(onCreated)
         
-        # 4. ADD TO UI (This is the missing link)
-        # This puts the button in the File Dropdown menu
-        fileMenu = ui.allToolbarPanels.itemById('FileDropdown')
-        if fileMenu:
-            # Check if it already exists, if not, add it
-            existingControl = fileMenu.controls.itemById(CMD_ID)
-            if not existingControl:
-                fileMenu.controls.addCommand(cmdDef)
+        # 4. ADD TO UI (Solid Tab -> Modify Panel)
+        # Putting it here makes it visible and ensures the shortcut 'registers'
+        workSpace = ui.workspaces.itemById('FusionSolidEnvironment')
+        tbPanels = workSpace.toolbarPanels
+        modifyPanel = tbPanels.itemById('ModifyPanel') # Usually contains Fillet/Shell
+        
+        if modifyPanel:
+            # Clean up existing control if it exists
+            existingCtrl = modifyPanel.controls.itemById(CMD_ID)
+            if existingCtrl:
+                existingCtrl.deleteMe()
+            # Add ZenExport to the bottom of the Modify menu
+            modifyPanel.controls.addCommand(cmdDef)
 
-        log_to_console(app, "ZenExport Ready. (Check File Menu)")
+        log_to_console(app, "ZenExport Ready. (Check Solid > Modify menu)")
         
     except:
         app = adsk.core.Application.get()
@@ -461,8 +470,19 @@ def run(context):
 def stop(context):
     try:
         app = adsk.core.Application.get()
-        if app.userInterface:
-            cmdDef = app.userInterface.commandDefinitions.itemById(CMD_ID)
-            if cmdDef: cmdDef.deleteMe()
+        ui = app.userInterface
+        
+        # Remove the button from the UI panel
+        workSpace = ui.workspaces.itemById('FusionSolidEnvironment')
+        modifyPanel = workSpace.toolbarPanels.itemById('ModifyPanel')
+        if modifyPanel:
+            ctrl = modifyPanel.controls.itemById(CMD_ID)
+            if ctrl: ctrl.deleteMe()
+
+        # Delete the command definition
+        cmdDef = ui.commandDefinitions.itemById(CMD_ID)
+        if cmdDef: cmdDef.deleteMe()
+        
         log_to_console(app, "ZenExport Stopped.")
-    except: pass
+    except:
+        pass
