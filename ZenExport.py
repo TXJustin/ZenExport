@@ -442,9 +442,9 @@ def run(context):
         cmdDef.commandCreated.add(onCreated) 
         _handlers.append(onCreated)
         
-        onStarting = ZenExportCommandStartingHandler()
-        ui.commandStarting.add(onStarting)
-        _handlers.append(onStarting)
+        #onStarting = ZenExportCommandStartingHandler()
+        #ui.commandStarting.add(onStarting)
+        #_handlers.append(onStarting)
         
         onActivated = ZenExportDocumentActivatedHandler()
         app.documentActivated.add(onActivated)
