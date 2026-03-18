@@ -422,45 +422,31 @@ class ZenExportDocumentActivatedHandler(adsk.core.DocumentEventHandler):
 # MAIN
 # ============================================================================
 
-# ============================================================================
-# MAIN
-# ============================================================================
-
 def run(context):
     try:
         app = adsk.core.Application.get()
         ui = app.userInterface
+        log_to_console(app, "ZenExport Starting (Save Button Mode)...")
         
-        # 1. Clean up old instances to prevent ghosting
+        # 1. Clean up old instances
         cmdDef = ui.commandDefinitions.itemById(CMD_ID)
-        if cmdDef:
-            cmdDef.deleteMe()
+        if cmdDef: cmdDef.deleteMe()
         
-        # 2. Create the Command Definition
-        # We use .shortcutKeyboard for the most reliable Ctrl+S override
+        # 2. Create the Command Definition 
+        # WE REMOVED .shortcutKeyboard HERE so Ctrl+S stays default.
         cmdDef = ui.commandDefinitions.addButtonDefinition(CMD_ID, CMD_NAME, CMD_DESC, ResourcesFolder)
-        cmdDef.shortcutKeyboard = "Ctrl+S" 
         
         # 3. Connect the Created Handler
         onCreated = ZenExportCommandCreatedHandler()
         cmdDef.commandCreated.add(onCreated) 
         _handlers.append(onCreated)
         
-        # 4. ADD TO UI (Solid Tab -> Modify Panel)
-        # Putting it here makes it visible and ensures the shortcut 'registers'
-        workSpace = ui.workspaces.itemById('FusionSolidEnvironment')
-        tbPanels = workSpace.toolbarPanels
-        modifyPanel = tbPanels.itemById('ModifyPanel') # Usually contains Fillet/Shell
-        
-        if modifyPanel:
-            # Clean up existing control if it exists
-            existingCtrl = modifyPanel.controls.itemById(CMD_ID)
-            if existingCtrl:
-                existingCtrl.deleteMe()
-            # Add ZenExport to the bottom of the Modify menu
-            modifyPanel.controls.addCommand(cmdDef)
+        # 4. RE-ENABLE THE INTERCEPTOR (This hijacks the UI Save Button)
+        onStarting = ZenExportCommandStartingHandler()
+        ui.commandStarting.add(onStarting)
+        _handlers.append(onStarting)
 
-        log_to_console(app, "ZenExport Ready. (Check Solid > Modify menu)")
+        log_to_console(app, "ZenExport Ready. Save Button hijacked; Ctrl+S is Cloud Save.")
         
     except:
         app = adsk.core.Application.get()
@@ -472,14 +458,12 @@ def stop(context):
         app = adsk.core.Application.get()
         ui = app.userInterface
         
-        # Remove the button from the UI panel
-        workSpace = ui.workspaces.itemById('FusionSolidEnvironment')
-        modifyPanel = workSpace.toolbarPanels.itemById('ModifyPanel')
-        if modifyPanel:
-            ctrl = modifyPanel.controls.itemById(CMD_ID)
-            if ctrl: ctrl.deleteMe()
-
-        # Delete the command definition
+        # Clean up handlers
+        for handler in _handlers:
+            # This is a bit generic, but Fusion handles the cleanup of 
+            # commandStarting handlers when the script stops.
+            pass
+            
         cmdDef = ui.commandDefinitions.itemById(CMD_ID)
         if cmdDef: cmdDef.deleteMe()
         
